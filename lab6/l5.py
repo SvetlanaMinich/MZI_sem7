@@ -234,7 +234,7 @@ def verify_file_integrity(actual_hash, expected_hash):
 
 
 if __name__ == "__main__":
-    test_file_content = " "
+    test_file_content = ""
     
     gost512_hash = hash_gost(test_file_content, 512)
     gost256_hash = hash_gost(test_file_content, 256)

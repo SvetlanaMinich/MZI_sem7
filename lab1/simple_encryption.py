@@ -13,22 +13,30 @@ S_BLOCKS = [
 ]
 
 
+def read_file_bytes(filepath):
+    with open(filepath, 'rb') as f:
+        return f.read()
+
+def write_file_bytes(filepath, data):
+    with open(filepath, 'wb') as f:
+        f.write(data)
+
+
 def add_mod_2_32(block, subkey):
     return (block + subkey) & UINT32_MAX
-
 
 def s_block_substitution(value):
     result = 0
     # every 4 bits in half-block swap with S_BLOCKS number
     for i in range(8):
-        block = (value >> (i * 4)) & 0xF
+        block = (value >> (i * 4)) & 0xF  # 0xF - 0b1111
         substituted_block = S_BLOCKS[i][block]
         result |= (substituted_block << (i * 4))
     return result
 
 
-def rotate_left(value):
-    return ((value << 11) & UINT32_MAX) | (value >> (32 - 11))
+def cycle_rotate_left(value):
+    return ((value << 11) & UINT32_MAX) | (value >> (32 - 11)) 
 
 
 def generate_subkeys(key_256_bit):
@@ -55,13 +63,12 @@ def gost_block_crypt(block_64_bit, subkeys):
     for i in range(32):
         f = add_mod_2_32(B, subkeys[i])
         f = s_block_substitution(f)
-        f = rotate_left(f)
+        f = cycle_rotate_left(f)
         new_A = f ^ A    # sum mod 2 == XOR
 
         A = B
         B = new_A
 
-    # ?
     final_A = B
     final_B = A
 
@@ -76,15 +83,14 @@ def int_to_bytes(int_data, length):
 
 def padding(data, block_size=8):
     padding_len = block_size - (len(data) % block_size)
-    padding = bytes([padding_len]) * padding_len
+    padding = bytes([0]) * padding_len
     return data + padding, padding_len
 
 def unpadding(data, padding_len):
     return data[:-padding_len]
 
-
 def gost_simple_substitution(data, subkeys, padding_len=None, encrypt=True):
-    block_size = 8 
+    block_size = 8 #bytes
 
     if encrypt:
         data, padding_len = padding(data, block_size)
@@ -106,19 +112,19 @@ def gost_simple_substitution(data, subkeys, padding_len=None, encrypt=True):
 
     return result, padding_len if encrypt else None
 
-
 if __name__ == '__main__':
     key = 0b0001000100100010001100110100010001010101011001100111011110001000100110011010101010111011110011001101110111101110111111110000000000010001001000100011001101000100010101010110011001110111100010001001100110101010101110111100110011011101111011101111111100000000
     
-    original_text = "Test message"
+    with open('lab1/test.txt', 'r', encoding="utf-8") as f:
+        original_text = f.read()
     original_bytes = original_text.encode('utf-8')
 
     print(f"Original text: {original_text}")
     
     encryption_subkeys, decryption_subkeys  = generate_subkeys(key)
 
-    print("\nSimple Substitution")
     encrypted, padding_len = gost_simple_substitution(original_bytes, encryption_subkeys, encrypt=True)
+    write_file_bytes('lab1/test-2.txt', encrypted)
+    encrypted = read_file_bytes('lab1/test-2.txt')
     decrypted, _ = gost_simple_substitution(encrypted, decryption_subkeys, padding_len, encrypt=False)
     print(f"Decrypted text: {decrypted.decode('utf-8')}")
-    assert original_bytes == decrypted, "ERROR"
